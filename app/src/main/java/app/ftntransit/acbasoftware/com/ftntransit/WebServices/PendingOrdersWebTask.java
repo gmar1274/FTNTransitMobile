@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
+import app.ftntransit.acbasoftware.com.ftntransit.ListViewAdapter.ListViewAdapter;
 import app.ftntransit.acbasoftware.com.ftntransit.LoginActivity;
 import app.ftntransit.acbasoftware.com.ftntransit.MainActivity;
 import app.ftntransit.acbasoftware.com.ftntransit.Objects.Driver;
@@ -109,14 +110,11 @@ public class PendingOrdersWebTask extends AsyncTask<Void, Void, String> {
                         }
                         String pksku=oneObject.getString("pickup_sku");
                         String delsku=oneObject.getString("delivery_sku");
-                        Date lfd=null;
-                        try {
-                            lfd = format.parse(oneObject.getString("lfd"));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        String lfd=oneObject.getString("lfd");
+
                         long term =oneObject.getLong("terminal");
-                        this.ma.arrayList_pendingOrders.add(new Order(on,sd,ed,comm,t,c,s,cont,term,sl,pkdate,pksku,delsku,lfd));
+                        String status = oneObject.getString("status");
+                        this.ma.arrayList_pendingOrders.add(new Order(on,sd,ed,comm,t,c,s,cont,term,sl,pkdate,pksku,delsku,lfd,status));
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -125,9 +123,10 @@ public class PendingOrdersWebTask extends AsyncTask<Void, Void, String> {
             } catch (JSONException e1) {
                 e1.printStackTrace();
             }
-            ArrayAdapter<Order> aa = new ArrayAdapter<Order>(this.ma.getApplicationContext(), R.layout.text_view_layout,this.ma.arrayList_pendingOrders);
+            //ArrayAdapter<Order> aa = new ArrayAdapter<Order>(this.ma.getApplicationContext(), R.layout.text_view_layout,this.ma.arrayList_pendingOrders);
+            ListViewAdapter lva = new ListViewAdapter(ma,this.ma.getApplication(),this.ma.arrayList_pendingOrders);
             ListView listView = (ListView) this.ma.findViewById(R.id.listview_pendingOrders);
-            listView.setAdapter(aa);
+            listView.setAdapter(lva);
 
 
         }
