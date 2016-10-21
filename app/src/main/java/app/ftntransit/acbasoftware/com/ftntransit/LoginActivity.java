@@ -6,16 +6,24 @@ import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -24,19 +32,20 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 
+import app.ftntransit.acbasoftware.com.ftntransit.Objects.Driver;
 import app.ftntransit.acbasoftware.com.ftntransit.Objects.Encryption;
 
 /**
  * A login screen that offers login via email/password.
  */
 public class LoginActivity extends AppCompatActivity {
-    private static long USER_ID=-1;
+    public static Driver DRIVER;
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
   //  private UserLoginTask mAuthTask = null;
     // UI references.
-    private AutoCompleteTextView mUsernameView;
+    private EditText mUsernameView;
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
@@ -50,29 +59,25 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
-
-
         ///////////////
+        mLoginFormView = findViewById(R.id.login_form);
+        mProgressView = findViewById(R.id.login_progress);
 
         pref = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
         //pref.edit().putString(PREF_USERNAME,null).putString(PREF_PASSWORD,null).commit();//debug
         String username = pref.getString(PREF_USERNAME, null);
         String password = pref.getString(PREF_PASSWORD, null);
+       //Log.e("Preffffffffff: ",username+" "+password );
         if (username != null && password != null) {
-            mAuthTask  = new UserLoginTask(username,password);
+            mAuthTask  = new UserLoginTask(username,password,this);
             mAuthTask.execute();
             return;
         }
         /////////////
 
         // Set up the login form.
-        mUsernameView = (AutoCompleteTextView) findViewById(R.id.textview_phone);
-
-
-        mPasswordView = (EditText) findViewById(R.id.textview_password);
-
-
+        mUsernameView = (EditText) findViewById(R.id.editText_username);
+        mPasswordView = (EditText) findViewById(R.id.editText_password);
         Button loginButton = (Button) findViewById(R.id.button_login);
         loginButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -81,9 +86,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-        mLoginFormView = findViewById(R.id.login_form);
-        mProgressView = findViewById(R.id.login_progress);
-    }
+       }
 
 
 
@@ -135,7 +138,7 @@ public class LoginActivity extends AppCompatActivity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(username, password);
+            mAuthTask = new UserLoginTask(username, password,this);
             mAuthTask.execute();
         }
     }
@@ -193,15 +196,16 @@ public class LoginActivity extends AppCompatActivity {
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
-        private final String username;
-        private final String mPassword;
-
-        UserLoginTask(String user, String password) {
+    public class UserLoginTask extends AsyncTask<Void, String, String> {
+        private  String username;
+        private  String mPassword;
+        private LoginActivity la;
+        UserLoginTask(String user, String password, LoginActivity la) {
             username = user;
             mPassword = password;
+            this.la=la;
         }
-        protected Boolean doInBackground(Void... arg0) {
+        protected String doInBackground(Void... arg0) {
         try {
             String username = this.username;
             String password =Encryption.encryptPassword(this.mPassword);
@@ -229,22 +233,19 @@ public class LoginActivity extends AppCompatActivity {
             // Read Server Response
             while ((line = reader.readLine()) != null) {
                 sb.append(line);
+                //Log.d("IN RESPONSE:::::",sb.toString());
                 break;
             }
-
-            if (isNumeric(sb.toString())){
-                LoginActivity.USER_ID = Long.parseLong(sb.toString());
-                return true;
-            }
+            return  sb.toString();
           //return true;///  return sb.toString();
         } catch (Exception e) {
             e.printStackTrace();
-           //return false;/// return "";
+           return "";
         }
-        return false;
     }
 
-        private Boolean isNumeric(String s) {
+        @NonNull
+        private Boolean isLong(String s) {
             try{
                 return Long.parseLong(s)>=0;
             }catch (Exception ee){
@@ -253,18 +254,48 @@ ee.printStackTrace();
             return false;
         }
 
-        protected void onPostExecute() {
+        protected void onPostExecute(String result) {
         showProgress(false);
-        if(LoginActivity.USER_ID>=0){
+            try {
+               // Log.d("HEREEEEEE:::::",result);
+                JSONObject jObject = new JSONObject(result);
+                JSONArray jArray = jObject.getJSONArray("driver");
+                for (int i = 0; i < jArray.length(); ++i) {
+                    try {
+                        JSONObject oneObject = jArray.getJSONObject(i);
+                        // Pulling items from the array
+                        long user_id = oneObject.getLong("user_id");
+                        long driver_id = oneObject.getLong("driver_id");
+                        String f = oneObject.getString("fname");
+                        String m = oneObject.getString("mname");
+                        String l = oneObject.getString("lname");
+                        DRIVER = new Driver(user_id,driver_id,f,m,l);
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            } catch (JSONException e1) {
+                e1.printStackTrace();
+            }
+
+
+
+
+            ///////////////////////
+        if(DRIVER!=null){
             if (pref != null) {
                 pref.edit().putString(LoginActivity.PREF_USERNAME,username).putString(LoginActivity.PREF_PASSWORD, mPassword).commit();
             }//getIntent().addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-           // Intent intent = new Intent(this.a, MainActivity.class);
-           // this.a.startActivity(intent);
+            Intent intent = new Intent(this.la, MainActivity.class);
+            this.la.startActivity(intent);
+            return;
         }else{
+           // if(mUsernameView==null || mPasswordView==null)return;
             mUsernameView.setError("Username may be incorrect");
             mPasswordView.setError("Password may be incorrect");
-            return;
+
         }
     }
 
